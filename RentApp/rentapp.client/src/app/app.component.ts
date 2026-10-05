@@ -1,0 +1,88 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule, Location } from '@angular/common';
+import { RouterModule, Router } from '@angular/router';
+import { AuthService } from './services/auth.service';
+import { FormsModule } from '@angular/forms';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, RouterModule, FormsModule],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent implements OnInit {
+  userName: string | null = '';
+  userEmail: string | null = '';
+  userTelephone: string | null = '';
+  message: string = '';
+  showDetails: boolean = false;
+  showChangePassword: boolean = false;
+  oldPassword: string = '';
+  newPassword: string = '';
+
+  constructor(
+    public authService: AuthService,
+    private router: Router,
+    private location: Location
+  ) { }
+
+  ngOnInit(): void {
+    const token = sessionStorage.getItem('token');  // schimbat de aici
+    if (token) {
+      this.userName = this.authService.getUserName();
+      this.userEmail = sessionStorage.getItem('email');  // schimbat
+      this.userTelephone = sessionStorage.getItem('telephoneNumber');  // schimbat
+    } else {
+      this.userName = null;
+      this.userEmail = null;
+      this.userTelephone = null;
+    }
+
+    this.authService.userName$.subscribe(name => this.userName = name);
+  }
+
+  logout(): void {
+    sessionStorage.clear();  // schimbat aici
+    this.userName = null;
+    this.userEmail = null;
+    this.userTelephone = null;
+    this.router.navigate(['/login']);
+  }
+
+  goToMyRentals(): void {
+    this.router.navigate(['/rentals/my']);
+  }
+
+  goBack(): void {
+    this.location.back();
+  }
+
+  showBackButton(): boolean {
+    const url = this.router.url;
+    return !(url.startsWith('/login') || url.startsWith('/register'));
+  }
+
+  changePassword(): void {
+    this.authService.changePassword(this.oldPassword, this.newPassword)
+      .subscribe({
+        next: resp => {
+          this.message = resp.Message;
+          this.oldPassword = '';
+          this.newPassword = '';
+          this.showChangePassword = false;
+        },
+        error: err => {
+          if (err.status === 400) {
+            this.message = 'Parola veche este incorectă.';
+          } else if (err.status === 401) {
+            this.message = 'Autentificare eșuată. Token invalid.';
+          } else if (err.status === 404) {
+            this.message = 'Utilizatorul nu a fost găsit.';
+          } else {
+            this.message = 'Eroare la schimbarea parolei. Încearcă din nou.';
+          }
+        }
+      });
+  }
+}
